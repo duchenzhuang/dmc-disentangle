@@ -1,7 +1,6 @@
 *.pyc
 *.png
 *.mp4
-*.txt
 
 # Log files
 logs/
