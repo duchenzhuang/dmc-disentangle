@@ -15,7 +15,6 @@ class SAC(object):
 		self.encoder_tau = args.encoder_tau
 		self.actor_update_freq = args.actor_update_freq
 		self.critic_target_update_freq = args.critic_target_update_freq
-		
 		shared_cnn = m.SharedCNN(obs_shape, args.num_shared_layers, args.num_filters).cuda()
 		rl_cnn = m.HeadCNN(shared_cnn.out_shape, args.num_head_layers, args.num_filters).cuda()
 		actor_encoder = m.Encoder(
@@ -136,7 +135,6 @@ class SAC(object):
 
 	def update(self, replay_buffer, L, step):
 		obs, action, reward, next_obs, not_done = replay_buffer.sample()
-
 		self.update_critic(obs, action, reward, next_obs, not_done, L, step)
 
 		if step % self.actor_update_freq == 0:

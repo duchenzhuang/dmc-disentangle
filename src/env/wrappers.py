@@ -22,7 +22,6 @@ def make_env(
 	"""Make environment for experiments"""
 	assert mode in {'train', 'color_easy', 'color_hard', 'video_easy', 'video_hard'}, \
 		f'specified mode "{mode}" is not supported'
-
 	env = dmc2gym.make(
 		domain_name=domain_name,
 		task_name=task_name,

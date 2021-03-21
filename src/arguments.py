@@ -66,7 +66,7 @@ def parse_args():
 
 	args = parser.parse_args()
 
-	assert args.algorithm in {'sac', 'rad', 'curl', 'pad', 'soda'}, f'specified algorithm "{args.algorithm}" is not supported'
+	assert args.algorithm in {'sac', 'rad', 'curl', 'pad', 'soda', 'ours'}, f'specified algorithm "{args.algorithm}" is not supported'
 
 	assert args.eval_mode in {'train', 'color_easy', 'color_hard', 'video_easy', 'video_hard'}, f'specified mode "{args.eval_mode}" is not supported'
 	assert args.seed is not None, 'must provide seed for experiment'

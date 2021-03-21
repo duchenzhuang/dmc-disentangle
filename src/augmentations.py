@@ -1,12 +1,10 @@
-import torch
-import torch.nn as nn
-import numpy as np
-import torchvision.transforms as TF
-import torchvision.datasets as datasets
 import os
-from TransformLayer import ColorJitterLayer
-from skimage.util.shape import view_as_windows
 
+import numpy as np
+import torch
+import torchvision.datasets as datasets
+import torchvision.transforms as TF
+from skimage.util.shape import view_as_windows
 
 # Specify one or more data directories here
 data_dirs = ['/your/data/path/here/']
