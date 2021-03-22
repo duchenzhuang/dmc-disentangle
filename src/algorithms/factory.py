@@ -4,6 +4,8 @@ from algorithms.curl import CURL
 from algorithms.pad import PAD
 from algorithms.soda import SODA
 from algorithms.ours import OURS
+from algorithms.ccm import CCM
+
 algorithm = {
 	'sac': SAC,
 	'rad': RAD,
@@ -11,6 +13,7 @@ algorithm = {
 	'pad': PAD,
 	'soda': SODA,
 	'ours': OURS,
+	'ccm': CCM,
 }
 
 
