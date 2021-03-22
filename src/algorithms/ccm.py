@@ -40,9 +40,9 @@ class CCM(SAC):
 	def update_ccm(self, x, x_pos, L=None, step=None):
 		assert x.size(-1) == 84 and x_pos.size(-1) == 84
 
+        # identical encoders
 		z_a = self.ccm_head.encoder(x)
-		with torch.no_grad():
-			z_pos = self.critic_target.encoder(x_pos)
+		z_pos = self.ccm_head.encoder(x_pos)
 
 		z_a_norm = (z_a - z_a.mean(0)) / z_a.std(0)  # NxD
 		z_pos_norm = (z_pos - z_pos.mean(0)) / z_pos.std(0)  # NxD
