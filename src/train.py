@@ -87,7 +87,7 @@ def main(args):
 		args=args
 	)
 	start_step, episode, episode_reward, done = 0, 0, 0, True
-	L = Logger(work_dir)
+	L = Logger(work_dir, use_tb=args.save_tb)
 	start_time = time.time()
 	for step in range(start_step, args.train_steps+1):
 		if done:

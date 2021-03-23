@@ -1,6 +1,8 @@
+from torch.utils.tensorboard import SummaryWriter
 from collections import defaultdict
 import json
 import os
+import shutil
 import torch
 from termcolor import colored
 
@@ -85,8 +87,15 @@ class MetersGroup(object):
 
 
 class Logger(object):
-    def __init__(self, log_dir, config='rl'):
+    def __init__(self, log_dir, use_tb=True, config='rl'):
         self._log_dir = log_dir
+        if use_tb:
+            tb_dir = os.path.join(log_dir, 'tb')
+            if os.path.exists(tb_dir):
+                shutil.rmtree(tb_dir)
+            self._sw = SummaryWriter(tb_dir)
+        else:
+            self._sw = None
         self._train_mg = MetersGroup(
             os.path.join(log_dir, 'train.log'),
             formating=FORMAT_CONFIG[config]['train']
@@ -96,10 +105,19 @@ class Logger(object):
             formating=FORMAT_CONFIG[config]['eval']
         )
 
+    def _try_sw_log(self, key, value, step):
+        if self._sw is not None:
+            self._sw.add_scalar(key, value, step)
+
+    def _try_sw_log_histogram(self, key, histogram, step):
+        if self._sw is not None:
+            self._sw.add_histogram(key, histogram, step)
+
     def log(self, key, value, step, n=1):
         assert key.startswith('train') or key.startswith('eval')
         if type(value) == torch.Tensor:
             value = value.item()
+        self._try_sw_log(key, value / n, step)
         mg = self._train_mg if key.startswith('train') else self._eval_mg
         mg.log(key, value, n)
 
@@ -111,6 +129,10 @@ class Logger(object):
             self.log_histogram(key + '_b', param.bias.data, step)
             if hasattr(param.bias, 'grad') and param.bias.grad is not None:
                 self.log_histogram(key + '_b_g', param.bias.grad.data, step)
+
+    def log_histogram(self, key, histogram, step):
+        assert key.startswith('train') or key.startswith('eval')
+        self._try_sw_log_histogram(key, histogram, step)
 
     def dump(self, step):
         self._train_mg.dump(step, 'train')

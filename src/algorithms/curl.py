@@ -39,7 +39,7 @@ class CURL(SAC):
 			L.log('train/aux_loss', curl_loss, step)
 
 	def update(self, replay_buffer, L, step):
-		obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_curl()
+		obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_curl(use_merge=False)
 
 		self.update_critic(obs, action, reward, next_obs, not_done, L, step)
 
