@@ -56,5 +56,9 @@ class OURS(SAC):
             self.soft_update_critic_target()
 
         if step % self.aux_update_freq == 0:
-            obs, action, next_obs = replay_buffer.sample_multi_views()
-            self.update_inverse_dynamics(obs, next_obs, action, L, step)
+            new_obs, new_action, new_next_obs = replay_buffer.sample_multi_views()
+
+            self.update_inverse_dynamics(torch.cat((obs, new_obs), 0),
+                                         torch.cat((next_obs, new_next_obs), 0),
+                                         torch.cat((action, new_action), 0),
+                                         L, step)

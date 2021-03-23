@@ -78,7 +78,8 @@ def main(args):
 		obs_shape=env.observation_space.shape,
 		action_shape=env.action_space.shape,
 		capacity=args.train_steps,
-		batch_size=args.batch_size
+		batch_size=args.batch_size,
+		sample_views_num=args.sample_views_num,
 	)
 	cropped_obs_shape = (3*args.frame_stack, 84, 84)
 	agent = make_agent(
@@ -87,7 +88,7 @@ def main(args):
 		args=args
 	)
 	start_step, episode, episode_reward, done = 0, 0, 0, True
-	L = Logger(work_dir, use_tb=args.save_tb)
+	L = Logger(work_dir)
 	start_time = time.time()
 	for step in range(start_step, args.train_steps+1):
 		if done:
