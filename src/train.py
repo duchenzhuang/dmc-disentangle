@@ -60,12 +60,7 @@ def main(args):
 		mode=args.eval_mode
 	)
 	#test
-	env.reset() # obs: 9 * 84 * 84
-	action = env.action_space.sample()
-	o1,_,_,_ = env.step(action)
-	np.save("obs.npy", o1, allow_pickle=True)
-	o2,_,_,_ = env.step(action)
-	np.save("next_obs.npy", o2, allow_pickle=True)
+	env.reset()#obs: 9 * 84 * 84
 	test_env.reset()
 
 	# Create working directory

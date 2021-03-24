@@ -40,7 +40,7 @@ class CCM(SAC):
 	def update_ccm(self, x, x_pos, L=None, step=None):
 		assert x.size(-1) == 84 and x_pos.size(-1) == 84
 
-        # identical encoders
+		# identical encoders
 		z_a = self.ccm_head.encoder(x)
 		z_pos = self.ccm_head.encoder(x_pos)
 

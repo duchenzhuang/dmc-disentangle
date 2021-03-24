@@ -4,6 +4,13 @@ import torch.nn.functional as F
 from algorithms.sac import SAC
 
 
+def off_diagonal(x):
+    # return a flattened view of the off-diagonal elements of a square matrix
+    n, m = x.shape
+    assert n == m
+    return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
+
+
 class OURS(SAC):
     def __init__(self, obs_shape, action_shape, args):
         super().__init__(obs_shape, action_shape, args)
@@ -17,7 +24,17 @@ class OURS(SAC):
             shared_cnn,
             aux_cnn,
             m.RLProjection(aux_cnn.out_shape, args.projection_dim)
+        ).cuda()
+
+        self.ccm_target = torch.eye(args.projection_dim).cuda()
+        self.ccm_mask = ~torch.eye(args.projection_dim, dtype=bool).cuda()
+        self.ccm_lambda = 0.005
+        self.ccm_head = m.CURLHead(shared_cnn).cuda()
+        self.ccm_optimizer = torch.optim.Adam(
+            self.ccm_head.parameters(), lr=args.aux_lr, betas=(args.aux_beta, 0.999)
         )
+
+
         self.pad_head = m.InverseDynamics(aux_encoder, action_shape, args.hidden_dim).cuda()
         self.init_pad_optimizer()
         self.train()
@@ -38,11 +55,34 @@ class OURS(SAC):
         pred_action = self.pad_head(obs, obs_next)
         pad_loss = F.mse_loss(pred_action, action)
 
-        self.pad_optimizer.zero_grad()
+        self.ccm_head.zero_grad()
         pad_loss.backward()
-        self.pad_optimizer.step()
+        self.ccm_optimizer.step()
         if L is not None:
             L.log('train/aux_loss', pad_loss, step)
+
+    def update_ccm(self, x, x_pos, L=None, step=None):
+        assert x.size(-1) == 84 and x_pos.size(-1) == 84
+
+        # identical encoders
+        z_a = self.pad_head.encoder(x)
+        z_pos = self.pad_head.encoder(x_pos)
+
+        z_a_norm = (z_a - z_a.mean(0)) / z_a.std(0)  # NxD
+        z_pos_norm = (z_pos - z_pos.mean(0)) / z_pos.std(0)  # NxD
+
+        # cross-correlation matrix
+        c = torch.mm(z_a_norm.T, z_pos_norm) / z_a.size(0)  # DxD
+        c_diff = (c - self.ccm_target).pow(2)  # DxD
+        c_diff[self.ccm_mask] *= self.ccm_lambda  # non-diag elements multiply with lambda
+        ccm_loss = c_diff.sum()
+
+        self.pad_optimizer.zero_grad()
+        ccm_loss.backward()
+        self.pad_optimizer.step()
+        if L is not None:
+            L.log('train/ccm_loss', ccm_loss, step)
+
 
     def update(self, replay_buffer, L, step):
         obs, action, reward, next_obs, not_done = replay_buffer.sample()
@@ -62,3 +102,8 @@ class OURS(SAC):
                                          torch.cat((next_obs, new_next_obs), 0),
                                          torch.cat((action, new_action), 0),
                                          L, step)
+
+            self.update_ccm(torch.cat((obs, next_obs), 0),
+                            torch.cat((new_obs, new_next_obs), 0),
+                            L,
+                            step)

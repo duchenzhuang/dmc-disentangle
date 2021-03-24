@@ -10,7 +10,7 @@ def parse_args():
 	parser.add_argument('--frame_stack', default=3, type=int)
 	parser.add_argument('--action_repeat', default=4, type=int)
 	parser.add_argument('--episode_length', default=1000, type=int)
-	parser.add_argument('--sample_views_num', default=1, type=int)
+	parser.add_argument('--sample_views_num', default=1, type=int)# sample views num
 	parser.add_argument('--eval_mode', default='color_hard', type=str)
 
 	
@@ -18,11 +18,10 @@ def parse_args():
 	parser.add_argument('--algorithm', default='sac', type=str)
 	parser.add_argument('--train_steps', default='500k', type=str)
 	parser.add_argument('--discount', default=0.99, type=float)
-	parser.add_argument('--invar_rate', default=0.5, type=float) # task invariant feature rate
+	parser.add_argument('--invar_rate', default=0.5, type=float)# task invariant feature rate
 	parser.add_argument('--init_steps', default=1000, type=int)
 	parser.add_argument('--batch_size', default=128, type=int)
 	parser.add_argument('--hidden_dim', default=1024, type=int)
-
 
 	# actor
 	parser.add_argument('--actor_lr', default=1e-3, type=float)
