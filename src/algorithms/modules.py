@@ -129,7 +129,7 @@ class HeadCNN(nn.Module):
 	def __init__(self, in_shape, num_layers=0, num_filters=32):
 		super().__init__()
 		self.layers = []
-		for _ in range(0, num_layers):
+		for _ in range(0, num_layers):#num_layers=0
 			self.layers.append(nn.ReLU())
 			self.layers.append(nn.Conv2d(num_filters, num_filters, 3, stride=1))
 		self.layers.append(Flatten())
