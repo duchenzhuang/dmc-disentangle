@@ -23,6 +23,7 @@ def parse_args():
 	parser.add_argument('--batch_size', default=128, type=int)
 	parser.add_argument('--hidden_dim', default=1024, type=int)
 
+
 	# actor
 	parser.add_argument('--actor_lr', default=1e-3, type=float)
 	parser.add_argument('--actor_beta', default=0.9, type=float)

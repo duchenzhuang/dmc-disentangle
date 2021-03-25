@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 def _get_out_shape(in_shape, layers):
 	x = torch.randn(*in_shape).unsqueeze(0)
 	return layers(x).squeeze(0).shape
@@ -247,6 +248,22 @@ class CURLHead(nn.Module):
 		logits = torch.matmul(z_a, Wz)  # (B,B)
 		logits = logits - torch.max(logits, 1)[0][:, None]
 		return logits
+
+
+class CCMHead(nn.Module):
+	def __init__(self, encoder, hidden_dim):
+		super().__init__()
+		self.encoder = encoder
+		self.projector = nn.Sequential(
+			nn.Linear(encoder.out_dim, hidden_dim), nn.BatchNorm1d(hidden_dim), nn.ReLU(),
+			nn.Linear(hidden_dim, hidden_dim), nn.BatchNorm1d(hidden_dim), nn.ReLU(),
+			nn.Linear(hidden_dim, hidden_dim)
+		)
+		self.apply(weight_init)
+
+	def forward(self, x):
+		h = self.encoder(x)
+		return self.projector(h)
 
 
 class InverseDynamics(nn.Module):

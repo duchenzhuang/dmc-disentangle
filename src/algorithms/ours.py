@@ -1,5 +1,6 @@
 import algorithms.modules as m
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from algorithms.sac import SAC
 
@@ -26,66 +27,67 @@ class OURS(SAC):
             m.RLProjection(aux_cnn.out_shape, args.projection_dim)
         ).cuda()
 
-        self.ccm_target = torch.eye(args.projection_dim).cuda()
-        self.ccm_mask = ~torch.eye(args.projection_dim, dtype=bool).cuda()
-        self.ccm_lambda = 0.005
-        self.ccm_head = m.CURLHead(shared_cnn).cuda()
-        self.ccm_optimizer = torch.optim.Adam(
-            self.ccm_head.parameters(), lr=args.aux_lr, betas=(args.aux_beta, 0.999)
-        )
-
+        self.ccm_lambda = 1
+        self.ccm_head = m.CCMHead(aux_encoder, args.hidden_dim).cuda()
+        self.bn = nn.BatchNorm1d(1024, affine=False).cuda()
 
         self.pad_head = m.InverseDynamics(aux_encoder, action_shape, args.hidden_dim).cuda()
-        self.init_pad_optimizer()
+        self.init_optimizer()
         self.train()
 
     def train(self, training=True):
         super().train(training)
         if hasattr(self, 'pad_head'):
             self.pad_head.train(training)
+        if hasattr(self, 'ccm_head'):
+            self.ccm_head.train(training)
 
-    def init_pad_optimizer(self):
+    def init_optimizer(self):
         self.pad_optimizer = torch.optim.Adam(
             self.pad_head.parameters(), lr=self.aux_lr, betas=(self.aux_beta, 0.999)
         )
+        self.ccm_optimizer = torch.optim.Adam(
+            self.ccm_head.parameters(), lr=self.aux_lr, betas=(self.aux_beta, 0.999)
+        )
 
     def update_inverse_dynamics(self, obs, obs_next, action, L=None, step=None):
+
         assert obs.shape[-1] == 84 and obs_next.shape[-1] == 84
 
         pred_action = self.pad_head(obs, obs_next)
         pad_loss = F.mse_loss(pred_action, action)
 
-        self.ccm_head.zero_grad()
+        self.pad_optimizer.zero_grad()
         pad_loss.backward()
-        self.ccm_optimizer.step()
+        self.pad_optimizer.step()
         if L is not None:
             L.log('train/aux_loss', pad_loss, step)
 
     def update_ccm(self, x, x_pos, L=None, step=None):
         assert x.size(-1) == 84 and x_pos.size(-1) == 84
 
+        self.ccm_optimizer.zero_grad()
         # identical encoders
-        z_a = self.pad_head.encoder(x)
-        z_pos = self.pad_head.encoder(x_pos)
+        z_1 = self.ccm_head(x)
+        z_2 = self.ccm_head(x_pos)
 
-        z_a_norm = (z_a - z_a.mean(0)) / z_a.std(0)  # NxD
-        z_pos_norm = (z_pos - z_pos.mean(0)) / z_pos.std(0)  # NxD
+        # empirical cross-correlation matrix
+        c = self.bn(z_1).T @ self.bn(z_2)
 
         # cross-correlation matrix
-        c = torch.mm(z_a_norm.T, z_pos_norm) / z_a.size(0)  # DxD
-        c_diff = (c - self.ccm_target).pow(2)  # DxD
-        c_diff[self.ccm_mask] *= self.ccm_lambda  # non-diag elements multiply with lambda
-        ccm_loss = c_diff.sum()
+        c.div_(z_1.size(0))  # DxD
 
-        self.pad_optimizer.zero_grad()
+        on_diag = torch.diagonal(c).add_(-1).pow_(2).sum().mul(1/32)
+        off_diag = off_diagonal(c).pow_(2).sum().mul(1/32)
+        ccm_loss = on_diag + 3.9e-3 * off_diag
+
         ccm_loss.backward()
-        self.pad_optimizer.step()
+        self.ccm_optimizer.step()
         if L is not None:
             L.log('train/ccm_loss', ccm_loss, step)
 
-
     def update(self, replay_buffer, L, step):
-        obs, action, reward, next_obs, not_done = replay_buffer.sample()
+        obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_curl()
 
         self.update_critic(obs, action, reward, next_obs, not_done, L, step)
 
@@ -96,14 +98,16 @@ class OURS(SAC):
             self.soft_update_critic_target()
 
         if step % self.aux_update_freq == 0:
-            new_obs, new_action, new_next_obs = replay_buffer.sample_multi_views()
+            # new_obs, new_action, new_next_obs = replay_buffer.sample_multi_views()
 
-            self.update_inverse_dynamics(torch.cat((obs, new_obs), 0),
-                                         torch.cat((next_obs, new_next_obs), 0),
-                                         torch.cat((action, new_action), 0),
-                                         L, step)
+            # self.update_inverse_dynamics(torch.cat((obs, new_obs), 0),
+            #                              torch.cat((next_obs, new_next_obs), 0),
+            #                              torch.cat((action, new_action), 0),
+            #                              L, step)
 
-            self.update_ccm(torch.cat((obs, next_obs), 0),
-                            torch.cat((new_obs, new_next_obs), 0),
-                            L,
-                            step)
+            # self.update_ccm(torch.cat((obs, next_obs), 0),
+            #                 torch.cat((new_obs, new_next_obs), 0),
+            #                 L,
+            #                 step)
+            self.update_inverse_dynamics(obs, next_obs, action, L, step)
+            self.update_ccm(obs, pos, L, step)
