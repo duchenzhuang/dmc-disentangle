@@ -142,6 +142,33 @@ class HeadCNN(nn.Module):
 		return self.layers(x)
 
 
+class Decoder(nn.Module):
+	def __init__(self, encoder, obs_shape=(9, 84, 84), feature_dim=100, out_dim=21, num_layers=11, num_filters=32):
+		super().__init__()
+
+		self.encoder = encoder
+		self.number_layers = num_layers
+		self.number_filters = num_filters
+		self.out_dim = out_dim
+
+		self.fc = nn.Linear(feature_dim, num_filters* self.out_dim * self.out_dim)
+
+		self.deconvs = []
+
+		for i in range(self.number_layers - 1):
+			self.deconvs.append(nn.ReLU())
+			self.deconvs.append(nn.ConvTranspose2d(num_filters, num_filters, 3, stride=1))
+		self.deconvs.append(nn.ConvTranspose2d(num_filters,obs_shape[0] , 3, stride=2, output_padding=1))
+		self.deconvs = nn.Sequential(*self.deconvs)
+
+	def forward(self, x):
+		h = self.encoder(x)
+		x = torch.relu(self.fc(h))
+		x = x.view(-1, self.number_filters, self.out_dim, self.out_dim)
+
+		return h, self.deconvs(x)
+
+
 class Encoder(nn.Module):
 	def __init__(self, shared_cnn, head_cnn, projection):
 		super().__init__()

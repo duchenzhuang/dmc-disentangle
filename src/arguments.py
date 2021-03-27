@@ -13,7 +13,6 @@ def parse_args():
 	parser.add_argument('--sample_views_num', default=1, type=int)# sample views num
 	parser.add_argument('--eval_mode', default='color_hard', type=str)
 
-	
 	# agent
 	parser.add_argument('--algorithm', default='sac', type=str)
 	parser.add_argument('--train_steps', default='500k', type=str)
@@ -22,7 +21,6 @@ def parse_args():
 	parser.add_argument('--init_steps', default=1000, type=int)
 	parser.add_argument('--batch_size', default=128, type=int)
 	parser.add_argument('--hidden_dim', default=1024, type=int)
-
 
 	# actor
 	parser.add_argument('--actor_lr', default=1e-3, type=float)
@@ -52,7 +50,8 @@ def parse_args():
 	# auxiliary tasks
 	parser.add_argument('--aux_lr', default=1e-3, type=float)
 	parser.add_argument('--aux_beta', default=0.9, type=float)
-	parser.add_argument('--aux_update_freq', default=2, type=int)
+	parser.add_argument('--aux_update_freq', default=1, type=int)
+	parser.add_argument('--ccm_lambda', default=0.01, type=float)
 
 	# soda
 	parser.add_argument('--soda_batch_size', default=256, type=int)

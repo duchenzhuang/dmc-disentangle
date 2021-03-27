@@ -27,7 +27,9 @@ class OURS(SAC):
             m.RLProjection(aux_cnn.out_shape, args.projection_dim)
         ).cuda()
 
-        self.ccm_lambda = 1
+        self.autoEncoder = m.Decoder(aux_encoder, obs_shape=obs_shape).cuda()
+
+        self.ccm_lambda = args.ccm_lambda
         self.ccm_head = m.CCMHead(aux_encoder, args.hidden_dim).cuda()
         self.bn = nn.BatchNorm1d(1024, affine=False).cuda()
 
@@ -41,6 +43,8 @@ class OURS(SAC):
             self.pad_head.train(training)
         if hasattr(self, 'ccm_head'):
             self.ccm_head.train(training)
+        if hasattr(self, 'autoEncoder'):
+            self.autoEncoder.train(training)
 
     def init_optimizer(self):
         self.pad_optimizer = torch.optim.Adam(
@@ -48,6 +52,9 @@ class OURS(SAC):
         )
         self.ccm_optimizer = torch.optim.Adam(
             self.ccm_head.parameters(), lr=self.aux_lr, betas=(self.aux_beta, 0.999)
+        )
+        self.ae_optimizer = torch.optim.Adam(
+            self.autoEncoder.parameters(), lr=self.aux_lr, betas=(self.aux_beta, 0.999)
         )
 
     def update_inverse_dynamics(self, obs, obs_next, action, L=None, step=None):
@@ -79,12 +86,26 @@ class OURS(SAC):
 
         on_diag = torch.diagonal(c).add_(-1).pow_(2).sum().mul(1/32)
         off_diag = off_diagonal(c).pow_(2).sum().mul(1/32)
-        ccm_loss = on_diag + 3.9e-3 * off_diag
+        ccm_loss = 0.01 * (on_diag + 3.9e-3 * off_diag)
 
         ccm_loss.backward()
         self.ccm_optimizer.step()
         if L is not None:
             L.log('train/ccm_loss', ccm_loss, step)
+
+    def update_ac(self, obs, L, step):
+        h, rec_obs = self.autoEncoder(obs)
+        rec_loss = F.mse_loss(obs, rec_obs)
+
+        latent_loss = (0.5 * h.pow(2).sum(1)).mean()
+
+        loss = rec_loss + 1e-6 * latent_loss
+
+        self.ae_optimizer.zero_grad()
+        loss.backward()
+        self.ae_optimizer.step()
+        L.log('train/ae_loss', loss, step)
+
 
     def update(self, replay_buffer, L, step):
         obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_curl()
@@ -109,5 +130,6 @@ class OURS(SAC):
             #                 torch.cat((new_obs, new_next_obs), 0),
             #                 L,
             #                 step)
-            self.update_inverse_dynamics(obs, next_obs, action, L, step)
-            self.update_ccm(obs, pos, L, step)
+            # self.update_inverse_dynamics(obs, next_obs, action, L, step)
+            # self.update_ccm(obs, pos, L, step)
+            self.update_ac(obs, L, step)
