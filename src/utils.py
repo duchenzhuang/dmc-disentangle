@@ -224,6 +224,47 @@ class ReplayBuffer(object):
 
 		return obs, actions, rewards, next_obs, not_dones, pos
 
+	def sample_rad(self, aug_funcs, n=None):
+
+		# augs specified as flags
+		# curl_sac organizes flags into aug funcs
+		# passes aug funcs into sampler
+
+		idxs = self._get_idxs(n)
+
+		obs = torch.as_tensor(self.obs[idxs]).cuda().float()
+		actions = torch.as_tensor(self.actions[idxs]).cuda()
+		rewards = torch.as_tensor(self.rewards[idxs]).cuda()
+		next_obs = torch.as_tensor(self.next_obs[idxs]).cuda().float()
+		not_dones = torch.as_tensor(self.not_dones[idxs]).cuda()
+
+		obses = np.empty(self.obs[idxs].shape, dtype=np.uint8)
+		np.copyto(self.obs[idxs], obses)
+
+		obs = augmentations.random_crop(obs)
+		next_obs = augmentations.random_crop(next_obs)
+
+		if aug_funcs:
+			for aug, func in aug_funcs.items():
+				# apply crop and cutout first
+				if 'crop' in aug or 'cutout' in aug:
+					obses = func(obses)
+				elif 'translate' in aug:
+					og_obses = center_crop_images(obses, self.pre_image_size)
+					obses, rndm_idxs = func(og_obses, self.image_size, return_random_idxs=True)
+
+		obses = torch.as_tensor(obses).cuda().float()
+		obses = obses / 255.
+		# augmentations go here
+		if aug_funcs:
+			for aug, func in aug_funcs.items():
+				# skip crop and cutout augs
+				if 'crop' in aug or 'cutout' in aug or 'translate' in aug:
+					continue
+				obses = func(obses)
+		pos = obses
+		return obs, actions, rewards, next_obs, not_dones, pos
+
 	def sample(self, n=None):
 		idxs = self._get_idxs(n)
 

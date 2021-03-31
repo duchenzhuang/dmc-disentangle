@@ -31,7 +31,7 @@ class OURS(SAC):
 
         self.ccm_lambda = args.ccm_lambda
         self.ccm_head = m.CCMHead(aux_encoder, args.hidden_dim).cuda()
-        self.bn = nn.BatchNorm1d(1024, affine=False).cuda()
+        self.bn = nn.BatchNorm1d(args.hidden_dim, affine=False).cuda()
 
         self.pad_head = m.InverseDynamics(aux_encoder, action_shape, args.hidden_dim).cuda()
         self.init_optimizer()
@@ -131,5 +131,5 @@ class OURS(SAC):
             #                 L,
             #                 step)
             # self.update_inverse_dynamics(obs, next_obs, action, L, step)
-            # self.update_ccm(obs, pos, L, step)
-            self.update_ac(obs, L, step)
+            self.update_ccm(obs, pos, L, step)
+            # self.update_ac(obs, L, step)

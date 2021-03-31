@@ -7,7 +7,7 @@ import torchvision.transforms as TF
 from skimage.util.shape import view_as_windows
 
 # Specify one or more data directories here
-data_dirs = ['/your/data/path/here/']
+data_dirs = ['/mnt/test/downloads']
 places_dataloader = None
 places_iter = None
 

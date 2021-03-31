@@ -1,5 +1,6 @@
 CUDA_VISIBLE_DEVICES=2 python3 src/train.py \
-	--algorithm ccm \
+	--algorithm ours \
 	--save_tb \
-	--hidden_dim 8192 \
+	--num_shared_layers 8 \
+	--num_head_layers 3 \
 	--seed 0

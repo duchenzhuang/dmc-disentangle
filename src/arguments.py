@@ -65,6 +65,7 @@ def parse_args():
 	# misc
 	parser.add_argument('--seed', default=1, type=int)
 	parser.add_argument('--log_dir', default='logs', type=str)
+	parser.add_argument('--save_tb', default=False, action='store_true')
 	parser.add_argument('--save_video', default=False, action='store_true')
 
 	args = parser.parse_args()
