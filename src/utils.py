@@ -148,67 +148,6 @@ class ReplayBuffer(object):
 	def sample_soda(self, n=None):
 		return torch.as_tensor(self.obs[self._get_idxs(n)]).cuda().float()
 
-	#add by chenzhuang
-	def batch_aug(self, obs):
-		"""
-		random augmentation for a obs batch
-		:param obs: a batch of raw observation N*C*100*100
-		:return: a augmented tensor N*C*84*84
-		"""
-		random_aug = np.random.randint(0, len(self.aug_func))
-		aug_name, aug_func = self.aug_names[random_aug], self.aug_func[random_aug]
-
-		if 'crop' in aug_name:
-			obs = aug_func(obs)
-			obs = torch.as_tensor(obs).float()
-
-		elif 'cutout' in aug_name:
-			og_obs = center_crop_images(obs, self.image_size)
-			obs = aug_func(og_obs)
-			obs = torch.as_tensor(obs).float()
-		elif 'translate' in aug_name:
-			og_obs = center_crop_images(obs, self.image_size)
-			obs, rndm_idxs = aug_func(og_obs, self.image_size, return_random_idxs=True)
-			obs = torch.as_tensor(obs).float()
-
-		else:  # augmentation on cuda
-			obs = center_crop_images(obs, self.image_size)
-			obs = torch.as_tensor(obs).float()
-			obs = aug_func(obs)
-
-		return obs
-
-	#add by chenzhuang
-	def sample_multi_views(self, n=None):
-		"""
-		sample multi views for inverse model
-		:param n: batch(Always None)
-		:return: augmented obs\next_obs
-		"""
-		idxs = self._get_idxs(n)
-
-		obs_raw = self.obs[idxs]
-		next_obs_raw = self.next_obs[idxs]
-		actions = self.actions[idxs]
-
-		b, c, _, _ = obs_raw.shape
-		_, action_shape = actions.shape
-
-		obses = torch.empty(self.sample_views_num * b, c, self.image_size, self.image_size).float()
-		actionses = torch.empty(self.sample_views_num * b, action_shape).float()
-		next_obses = torch.empty(self.sample_views_num * b, c, self.image_size, self.image_size).float()
-
-
-		for i in range(self.sample_views_num):
-			obs = self.batch_aug(copy.deepcopy(obs_raw))
-			next_obs = self.batch_aug(copy.deepcopy(next_obs_raw))
-
-			obses[i*b:i*b+b, :, :, :] = obs
-			next_obses[i*b:i*b+b, :, :, :] = next_obs
-			actionses[i*b:i*b+b, :] = torch.as_tensor(actions)
-
-		return obses.cuda().float(), actionses.cuda(), next_obses.cuda().float()
-
 	def sample_curl(self, n=None):
 		idxs = self._get_idxs(n)
 
@@ -262,7 +201,9 @@ class ReplayBuffer(object):
 				if 'crop' in aug or 'cutout' in aug or 'translate' in aug:
 					continue
 				obses = func(obses)
-		pos = obses
+
+		pos = obses * 255.
+
 		return obs, actions, rewards, next_obs, not_dones, pos
 
 	def sample(self, n=None):

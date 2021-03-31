@@ -77,7 +77,7 @@ class Flatten(nn.Module):
 
 
 class RLProjection(nn.Module):
-	def __init__(self, in_shape, out_dim):
+	def __init__(self, in_shape, out_dim, disentangle=False, ccm_dim=8192, task_dim_rate=0.7):
 		super().__init__()
 		self.out_dim = out_dim
 		self.projection = nn.Sequential(
@@ -85,10 +85,35 @@ class RLProjection(nn.Module):
 			nn.LayerNorm(out_dim),
 			nn.Tanh()
 		)
+		self.disentangle = disentangle
+		self.task_relevant_dim = int(task_dim_rate * ccm_dim)
+
+		if self.disentangle:
+			self.ccm_projector = nn.Sequential(
+				nn.Linear(out_dim, ccm_dim), nn.BatchNorm1d(ccm_dim), nn.ReLU(),
+				nn.Linear(ccm_dim, ccm_dim), nn.BatchNorm1d(ccm_dim), nn.ReLU(),
+				nn.Linear(ccm_dim, ccm_dim)
+			)
+
+			self.inverse_projector = nn.Sequential(
+				nn.Linear(self.task_relevant_dim, ccm_dim), nn.BatchNorm1d(ccm_dim), nn.ReLU(),
+				nn.Linear(ccm_dim, ccm_dim), nn.BatchNorm1d(ccm_dim), nn.ReLU(),
+				nn.Linear(ccm_dim, out_dim), nn.LayerNorm(out_dim), nn.Tanh()
+			)
 		self.apply(weight_init)
 	
 	def forward(self, x):
-		return self.projection(x)
+		x = self.projection(x)
+		if self.disentangle:
+			x = self.ccm_projector(x)
+			return self.inverse_projector(x[:, :self.task_relevant_dim])
+		return x
+
+	def ccm_forward(self, x):
+		assert self.disentangle
+		x = self.projection(x)
+		return self.ccm_projector(x)
+
 
 
 class SODAMLP(nn.Module):
@@ -185,6 +210,11 @@ class Encoder(nn.Module):
 			x = x.detach()
 		return self.projection(x)
 
+	def ccm_forward(self, x):
+		x = self.shared_cnn(x)
+		x = self.head_cnn(x)
+		return self.projection.ccm_forward(x)
+
 
 class Actor(nn.Module):
 	def __init__(self, encoder, action_shape, hidden_dim, log_std_min, log_std_max):
@@ -278,17 +308,21 @@ class CURLHead(nn.Module):
 
 
 class CCMHead(nn.Module):
-	def __init__(self, encoder, hidden_dim):
+	def __init__(self, encoder, ccm_dim):
 		super().__init__()
 		self.encoder = encoder
 		self.projector = nn.Sequential(
-			nn.Linear(encoder.out_dim, hidden_dim), nn.BatchNorm1d(hidden_dim), nn.ReLU(),
-			nn.Linear(hidden_dim, hidden_dim), nn.BatchNorm1d(hidden_dim), nn.ReLU(),
-			nn.Linear(hidden_dim, hidden_dim)
+			nn.Linear(encoder.out_dim, ccm_dim), nn.BatchNorm1d(ccm_dim), nn.ReLU(),
+			nn.Linear(ccm_dim, ccm_dim), nn.BatchNorm1d(ccm_dim), nn.ReLU(),
+			nn.Linear(ccm_dim, ccm_dim)
 		)
 		self.apply(weight_init)
 
 	def forward(self, x):
+		h = self.encoder(x)
+		return self.projector(h)
+
+	def ccm_forward(self, x):
 		h = self.encoder(x)
 		return self.projector(h)
 
