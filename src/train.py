@@ -80,7 +80,6 @@ def main(args):
 		action_shape=env.action_space.shape,
 		capacity=args.train_steps,
 		batch_size=args.batch_size,
-		sample_views_num=args.sample_views_num,
 	)
 	cropped_obs_shape = (3*args.frame_stack, 84, 84)
 	agent = make_agent(

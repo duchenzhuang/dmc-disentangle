@@ -10,7 +10,6 @@ def parse_args():
 	parser.add_argument('--frame_stack', default=3, type=int)
 	parser.add_argument('--action_repeat', default=4, type=int)
 	parser.add_argument('--episode_length', default=1000, type=int)
-	parser.add_argument('--sample_views_num', default=1, type=int)# sample views num
 	parser.add_argument('--eval_mode', default='color_hard', type=str)
 
 	# agent
@@ -56,7 +55,8 @@ def parse_args():
 	parser.add_argument('--ccm_lambda', default=1, type=float)
 	parser.add_argument('--ccm_dim', default=8192, type=int)
 	parser.add_argument('--task_dim_rate', default=0.7, type=float)
-	parser.add_argument('--disentangle', default=False, type=bool)
+	parser.add_argument('--disentangle', default=False, action='store_true')
+
 
 	# soda
 	parser.add_argument('--soda_batch_size', default=256, type=int)

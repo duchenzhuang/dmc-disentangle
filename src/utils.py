@@ -92,7 +92,7 @@ def array_init(capacity, dims, dtype):
 
 class ReplayBuffer(object):
 	"""Buffer to store environment transitions"""
-	def __init__(self, obs_shape, action_shape, capacity, batch_size, sample_views_num):
+	def __init__(self, obs_shape, action_shape, capacity, batch_size):
 		self.capacity = capacity
 		self.batch_size = batch_size
 
@@ -111,22 +111,6 @@ class ReplayBuffer(object):
 		self.pre_image_size = 84 # if crop in image size ; else 100
 		self.image_size = 84
 
-		self.sample_views_num = sample_views_num
-		self.aug_names = ['crop', 'grayscale', 'cutout', 'cutout_color',
-						  'flip', 'rotate', 'rand_conv', 'color_jitter', 'translate']
-
-		self.aug_func = [
-			rad.random_crop,
-			rad.random_grayscale,
-			rad.random_cutout,
-			rad.random_cutout_color,
-			rad.random_flip,
-			rad.random_rotation,
-			rad.random_convolution,
-			rad.random_color_jitter,
-			rad.random_translate,
-			# 'no_aug': rad.no_aug,
-		]
 
 	def add(self, obs, action, reward, next_obs, done):
 		np.copyto(self.obs[self.idx], obs)
