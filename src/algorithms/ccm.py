@@ -19,6 +19,7 @@ class CCM(SAC):
         self.aux_update_freq = args.aux_update_freq
         self.aux_lr = args.aux_lr
         self.aux_beta = args.aux_beta
+        self.soda_batch_size = args.soda_batch_size
 
         shared_cnn = self.critic.encoder.shared_cnn
         aux_cnn = m.HeadCNN(shared_cnn.out_shape, args.num_head_layers, args.num_filters).cuda()
@@ -44,12 +45,12 @@ class CCM(SAC):
                 'grayscale':rad.random_grayscale,
                 'cutout':rad.random_cutout,
                 'cutout_color':rad.random_cutout_color,
-                'flip':rad.random_flip,
-                'rotate':rad.random_rotation,
+                # 'flip':rad.random_flip,
+                # 'rotate':rad.random_rotation,
                 'rand_conv':rad.random_convolution,
                 'color_jitter':rad.random_color_jitter,
                 'translate':rad.random_translate,
-                # 'no_aug':rad.no_aug,
+                'no_aug':rad.no_aug,
             }
 
         # for aug_name in self.data_augs.split('-'):
@@ -116,8 +117,8 @@ class CCM(SAC):
         if L is not None:
             L.log('train/ccm_loss', ccm_loss, step)
 
-    def update_soda_ccm(self, x, L=None, step=None):
-        assert x.size(-1) == 100
+    def update_soda_ccm(self, x, size, L=None, step=None):
+        assert x.size(-1) == size
 
         aug_x = x.clone()
 
@@ -160,9 +161,10 @@ class CCM(SAC):
 
 
     def update(self, replay_buffer, L, step):
-        # obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_curl()
+        obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_curl()
+        # obs, action, reward, next_obs, not_done = replay_buffer.sample()
         # ori, obs, action, reward, next_obs, not_done = replay_buffer.sample_rad(self.augs_funcs)
-        obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_rad(self.augs_funcs)
+        # obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_rad(self.augs_funcs)
 
         self.update_critic(obs, action, reward, next_obs, not_done, L, step)
 
@@ -189,15 +191,16 @@ class CCM(SAC):
             # self.update_ac(obs, L, step)
 
 
+            # # soda augmentation + ccm + same obs
+            # self.update_soda_ccm(obs, 84, L, step)
 
 
-            # soda augmentation + ccm
-            # obs = replay_buffer.sample_soda()
-            # self.update_soda_ccm(obs, L, step)
+            # soda augmentation + ccm + diff
+            obs = replay_buffer.sample_soda(self.soda_batch_size)
+            self.update_soda_ccm(obs, 100, L, step)
 
 
 
 
-            # rad augmentation + ccm
-            self.update_ccm(obs, pos, L, step)
-            # self.update_rad_ccm(ori, obs, L, step)
+            # # rad augmentation + ccm
+            # self.update_ccm(obs, pos, L, step)

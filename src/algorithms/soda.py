@@ -69,6 +69,28 @@ class SODA(SAC):
 			self.soda_tau
 		)
 
+	def update_soda_same(self, x, L=None, step=None):
+		assert x.size(-1) == 84
+
+		aug_x = x.clone()
+
+		# x = augmentations.random_crop(x)
+		# aug_x = augmentations.random_crop(aug_x)
+		aug_x = augmentations.random_overlay(aug_x)
+
+		soda_loss = self.compute_soda_loss(aug_x, x)
+
+		self.soda_optimizer.zero_grad()
+		soda_loss.backward()
+		self.soda_optimizer.step()
+		if L is not None:
+			L.log('train/aux_loss', soda_loss, step)
+
+		utils.soft_update_params(
+			self.predictor, self.predictor_target,
+			self.soda_tau
+		)
+
 	def update(self, replay_buffer, L, step):
 		obs, action, reward, next_obs, not_done = replay_buffer.sample()
 
@@ -81,4 +103,5 @@ class SODA(SAC):
 			self.soft_update_critic_target()
 
 		if step % self.aux_update_freq == 0:
-			self.update_soda(replay_buffer, L, step)
+			# self.update_soda(replay_buffer, L, step)
+			self.update_soda_same(obs, L, step)
