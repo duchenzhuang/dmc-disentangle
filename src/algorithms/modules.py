@@ -77,7 +77,7 @@ class Flatten(nn.Module):
 
 
 class RLProjection(nn.Module):
-	def __init__(self, in_shape, out_dim, disentangle=False, ccm_dim=8192, task_dim_rate=0.7):
+	def __init__(self, in_shape, out_dim, disentangle=False, ccm_dim=4096, task_dim_rate=0.7):
 		super().__init__()
 		self.out_dim = out_dim
 		self.projection = nn.Sequential(
@@ -325,6 +325,7 @@ class CCMHead(nn.Module):
 	def ccm_forward(self, x):
 		h = self.encoder(x)
 		return self.projector(h)
+
 
 
 class InverseDynamics(nn.Module):

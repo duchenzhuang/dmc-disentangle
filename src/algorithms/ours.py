@@ -1,7 +1,8 @@
-import algorithms.modules as m
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
+import algorithms.modules as m
+import rad_augmentation as rad
 from algorithms.sac import SAC
 
 
@@ -27,7 +28,6 @@ class OURS(SAC):
             m.RLProjection(aux_cnn.out_shape, args.projection_dim, args.disentangle, args.ccm_dim, args.task_dim_rate)
         ).cuda()
 
-
         self.disentangle = args.disentangle
         self.ccm_lambda = args.ccm_lambda
         if self.disentangle:
@@ -36,6 +36,18 @@ class OURS(SAC):
             self.ccm_head = m.CCMHead(aux_encoder, args.ccm_dim).cuda()
 
         self.bn = nn.BatchNorm1d(args.ccm_dim, affine=False).cuda()
+        self.augs_funcs = {
+            'crop': rad.random_crop,
+            'grayscale': rad.random_grayscale,
+            'cutout': rad.random_cutout,
+            'cutout_color': rad.random_cutout_color,
+            'flip': rad.random_flip,
+            'rotate': rad.random_rotation,
+            'rand_conv': rad.random_convolution,
+            'color_jitter': rad.random_color_jitter,
+            'translate': rad.random_translate,
+            'no_aug': rad.no_aug,
+        }
 
         self.init_optimizer()
         self.train()
@@ -49,10 +61,12 @@ class OURS(SAC):
         self.ccm_optimizer = torch.optim.Adam(
             self.ccm_head.parameters(), lr=self.aux_lr, betas=(self.aux_beta, 0.999)
         )
+
     def update_ccm(self, x, x_pos, L=None, step=None):
         assert x.size(-1) == 84 and x_pos.size(-1) == 84
 
         self.ccm_optimizer.zero_grad()
+
         # identical encoders
         z_1 = self.ccm_head.ccm_forward(x)
         z_2 = self.ccm_head.ccm_forward(x_pos)
@@ -73,7 +87,7 @@ class OURS(SAC):
             L.log('train/ccm_loss', ccm_loss, step)
 
     def update(self, replay_buffer, L, step):
-        obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_curl()
+        obs, action, reward, next_obs, not_done = replay_buffer.sample_rad_norm(self.augs_funcs)
 
         self.update_critic(obs, action, reward, next_obs, not_done, L, step)
 
@@ -84,4 +98,7 @@ class OURS(SAC):
             self.soft_update_critic_target()
 
         if step % self.aux_update_freq == 0:
-            self.update_ccm(obs, obs, L, step)
+            # obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_curl()
+            obs, pos = replay_buffer.sample_rad_pair(self.augs_funcs)
+            self.update_ccm(obs, pos, L, step)
+
