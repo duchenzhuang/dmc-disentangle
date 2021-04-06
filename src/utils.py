@@ -1,12 +1,13 @@
-import torch
-import numpy as np
-import os
 import json
+import os
 import random
-import augmentations
-import rad_augmentation as rad
 from datetime import datetime
-import copy
+
+import numpy as np
+import torch
+
+import augmentations
+
 
 class eval_mode(object):
 	def __init__(self, *models):
@@ -189,6 +190,83 @@ class ReplayBuffer(object):
 		pos = obses * 255.
 
 		return obs, actions, rewards, next_obs, not_dones, pos
+
+	def sample_rad_norm(self, aug_funcs, n=None):
+		# augs specified as flags
+		# curl_sac organizes flags into aug funcs
+		# passes aug funcs into sampler
+		idxs = self._get_idxs(n)
+
+		obses = self.obs[idxs]
+		next_obses = self.next_obs[idxs]
+
+		if aug_funcs:
+			for aug, func in aug_funcs.items():
+				# apply crop and cutout first
+				if 'crop' in aug or 'cutout' in aug:
+					obses = func(obses)
+					next_obses = func(next_obses)
+				elif 'translate' in aug:
+					og_obses = center_crop_images(obses, self.pre_image_size)
+					og_next_obses = center_crop_images(next_obses, self.pre_image_size)
+					obses, rndm_idxs = func(og_obses, self.image_size, return_random_idxs=True)
+					next_obses = func(og_next_obses, self.image_size, **rndm_idxs)
+
+		obses = torch.as_tensor(obses).cuda().float()
+		next_obses = torch.as_tensor(next_obses).cuda().float()
+		actions = torch.as_tensor(self.actions[idxs]).cuda()
+		rewards = torch.as_tensor(self.rewards[idxs]).cuda()
+		not_dones = torch.as_tensor(self.not_dones[idxs]).cuda()
+
+		obses = obses / 255.
+		next_obses = next_obses / 255.
+
+		# augmentations go here
+		if aug_funcs:
+			for aug, func in aug_funcs.items():
+				# skip crop and cutout augs
+				if 'crop' in aug or 'cutout' in aug or 'translate' in aug:
+					continue
+				obses = func(obses)
+				next_obses = func(next_obses)
+
+		return obses * 255., actions, rewards, next_obses * 255., not_dones
+
+	def sample_rad_pair(self, aug_funcs, n=None):
+		# augs specified as flags
+		# curl_sac organizes flags into aug funcs
+		# passes aug funcs into sampler
+		idxs = self._get_idxs(n)
+		obses = self.obs[idxs]
+		poses = np.empty(self.obs[idxs].shape, dtype=np.uint8)
+		np.copyto(self.obs[idxs], poses)
+
+		if aug_funcs:
+			for aug, func in aug_funcs.items():
+				# apply crop and cutout first
+				if 'crop' in aug or 'cutout' in aug:
+					obses = func(obses)
+					poses = func(poses)
+				elif 'translate' in aug:
+					og_obses = center_crop_images(obses, self.pre_image_size)
+					og_poses = center_crop_images(poses, self.pre_image_size)
+					obses, rndm_idxs = func(og_obses, self.image_size, return_random_idxs=True)
+					poses = func(og_poses, self.image_size, **rndm_idxs)
+
+		obses = torch.as_tensor(obses).cuda().float() / 255.
+		poses = torch.as_tensor(poses).cuda().float() / 255.
+
+		# augmentations go here
+		if aug_funcs:
+			for aug, func in aug_funcs.items():
+				# skip crop and cutout augs
+				if 'crop' in aug or 'cutout' in aug or 'translate' in aug:
+					continue
+				obses = func(obses)
+				poses = func(poses)
+
+		return obses * 255., poses * 255.
+
 
 	def sample(self, n=None):
 		idxs = self._get_idxs(n)

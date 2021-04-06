@@ -13,10 +13,9 @@ def parse_args():
 	parser.add_argument('--eval_mode', default='color_hard', type=str)
 
 	# agent
-	parser.add_argument('--algorithm', default='sac', type=str)
+	parser.add_argument('--algorithm', default='ours', type=str)
 	parser.add_argument('--train_steps', default='500k', type=str)
 	parser.add_argument('--discount', default=0.99, type=float)
-	parser.add_argument('--invar_rate', default=0.5, type=float)# task invariant feature rate
 	parser.add_argument('--init_steps', default=1000, type=int)
 	parser.add_argument('--batch_size', default=128, type=int)
 	parser.add_argument('--hidden_dim', default=1024, type=int)
@@ -49,14 +48,11 @@ def parse_args():
 	# auxiliary tasks
 	parser.add_argument('--aux_lr', default=1e-3, type=float)
 	parser.add_argument('--aux_beta', default=0.9, type=float)
-	parser.add_argument('--aux_update_freq', default=1, type=int)
+	parser.add_argument('--aux_update_freq', default=2, type=int)
 
 	# ccm
 	parser.add_argument('--ccm_lambda', default=1, type=float)
-	parser.add_argument('--ccm_dim', default=8192, type=int)
-	parser.add_argument('--task_dim_rate', default=0.7, type=float)
-	parser.add_argument('--disentangle', default=False, action='store_true')
-
+	parser.add_argument('--ccm_dim', default=4096, type=int)
 
 	# soda
 	parser.add_argument('--soda_batch_size', default=256, type=int)
