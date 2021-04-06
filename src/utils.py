@@ -1,12 +1,13 @@
-import torch
-import numpy as np
-import os
 import json
+import os
 import random
-import augmentations
-import rad_augmentation as rad
 from datetime import datetime
-import copy
+
+import numpy as np
+import torch
+
+import augmentations
+
 
 class eval_mode(object):
 	def __init__(self, *models):

@@ -25,15 +25,11 @@ class OURS(SAC):
         aux_encoder = m.Encoder(
             shared_cnn,
             aux_cnn,
-            m.RLProjection(aux_cnn.out_shape, args.projection_dim, args.disentangle, args.ccm_dim, args.task_dim_rate)
+            m.RLProjection(aux_cnn.out_shape, args.projection_dim)
         ).cuda()
 
-        self.disentangle = args.disentangle
         self.ccm_lambda = args.ccm_lambda
-        if self.disentangle:
-            self.ccm_head = aux_encoder
-        else:
-            self.ccm_head = m.CCMHead(aux_encoder, args.ccm_dim).cuda()
+        self.ccm_head = m.CCMHead(aux_encoder, args.ccm_dim).cuda()
 
         self.bn = nn.BatchNorm1d(args.ccm_dim, affine=False).cuda()
         self.augs_funcs = {
@@ -46,7 +42,7 @@ class OURS(SAC):
             'rand_conv': rad.random_convolution,
             'color_jitter': rad.random_color_jitter,
             'translate': rad.random_translate,
-            'no_aug': rad.no_aug,
+            # 'no_aug': rad.no_aug,
         }
 
         self.init_optimizer()
@@ -68,8 +64,8 @@ class OURS(SAC):
         self.ccm_optimizer.zero_grad()
 
         # identical encoders
-        z_1 = self.ccm_head.ccm_forward(x)
-        z_2 = self.ccm_head.ccm_forward(x_pos)
+        z_1 = self.ccm_head(x)
+        z_2 = self.ccm_head(x_pos)
 
         # empirical cross-correlation matrix
         c = self.bn(z_1).T @ self.bn(z_2)
@@ -87,8 +83,8 @@ class OURS(SAC):
             L.log('train/ccm_loss', ccm_loss, step)
 
     def update(self, replay_buffer, L, step):
-        obs, action, reward, next_obs, not_done = replay_buffer.sample_rad_norm(self.augs_funcs)
-
+        # obs, action, reward, next_obs, not_done = replay_buffer.sample_rad_norm(self.augs_funcs)
+        obs, action, reward, next_obs, not_done = replay_buffer.sample()
         self.update_critic(obs, action, reward, next_obs, not_done, L, step)
 
         if step % self.actor_update_freq == 0:
@@ -98,7 +94,6 @@ class OURS(SAC):
             self.soft_update_critic_target()
 
         if step % self.aux_update_freq == 0:
-            # obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_curl()
-            obs, pos = replay_buffer.sample_rad_pair(self.augs_funcs)
+            obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_rad(self.augs_funcs)
             self.update_ccm(obs, pos, L, step)
 

@@ -53,9 +53,6 @@ def parse_args():
 	# ccm
 	parser.add_argument('--ccm_lambda', default=1, type=float)
 	parser.add_argument('--ccm_dim', default=4096, type=int)
-	parser.add_argument('--task_dim_rate', default=0.7, type=float)
-	parser.add_argument('--disentangle', default=False, action='store_true')
-
 
 	# soda
 	parser.add_argument('--soda_batch_size', default=256, type=int)

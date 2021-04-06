@@ -1,12 +1,12 @@
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from copy import deepcopy
-import utils
+
+import torch
+import torch.nn.functional as F
+
 import algorithms.modules as m
-from algorithms.sac import SAC
 import augmentations
+import utils
+from algorithms.sac import SAC
 
 
 class SODA(SAC):

@@ -77,7 +77,7 @@ class Flatten(nn.Module):
 
 
 class RLProjection(nn.Module):
-	def __init__(self, in_shape, out_dim, disentangle=False, ccm_dim=4096, task_dim_rate=0.7):
+	def __init__(self, in_shape, out_dim):
 		super().__init__()
 		self.out_dim = out_dim
 		self.projection = nn.Sequential(
@@ -85,34 +85,12 @@ class RLProjection(nn.Module):
 			nn.LayerNorm(out_dim),
 			nn.Tanh()
 		)
-		self.disentangle = disentangle
-		self.task_relevant_dim = int(task_dim_rate * ccm_dim)
-
-		if self.disentangle:
-			self.ccm_projector = nn.Sequential(
-				nn.Linear(out_dim, ccm_dim), nn.BatchNorm1d(ccm_dim), nn.ReLU(),
-				nn.Linear(ccm_dim, ccm_dim), nn.BatchNorm1d(ccm_dim), nn.ReLU(),
-				nn.Linear(ccm_dim, ccm_dim)
-			)
-
-			self.inverse_projector = nn.Sequential(
-				nn.Linear(self.task_relevant_dim, ccm_dim), nn.BatchNorm1d(ccm_dim), nn.ReLU(),
-				nn.Linear(ccm_dim, ccm_dim), nn.BatchNorm1d(ccm_dim), nn.ReLU(),
-				nn.Linear(ccm_dim, out_dim), nn.LayerNorm(out_dim), nn.Tanh()
-			)
 		self.apply(weight_init)
 	
 	def forward(self, x):
 		x = self.projection(x)
-		if self.disentangle:
-			x = self.ccm_projector(x)
-			return self.inverse_projector(x[:, :self.task_relevant_dim])
 		return x
 
-	def ccm_forward(self, x):
-		assert self.disentangle
-		x = self.projection(x)
-		return self.ccm_projector(x)
 
 
 
@@ -210,10 +188,6 @@ class Encoder(nn.Module):
 			x = x.detach()
 		return self.projection(x)
 
-	def ccm_forward(self, x):
-		x = self.shared_cnn(x)
-		x = self.head_cnn(x)
-		return self.projection.ccm_forward(x)
 
 
 class Actor(nn.Module):
@@ -322,9 +296,6 @@ class CCMHead(nn.Module):
 		h = self.encoder(x)
 		return self.projector(h)
 
-	def ccm_forward(self, x):
-		h = self.encoder(x)
-		return self.projector(h)
 
 
 
