@@ -16,7 +16,7 @@ FORMAT_CONFIG = {
             ('neg_loss', 'NEGLOSS', 'float')
         ],
         'eval': [('step', 'S', 'int'), ('episode_reward', 'ER', 'float'), ('episode_reward_test_env', 'ERTEST', 'float'),
-                 ('episode_reward_test_env_color_easy', 'ERTEST-CE', 'float'),  ('episode_reward_test_env_color_hard', 'ERTEST-CH', 'float'),  ('episode_reward_test_env_video_easy', 'ERTEST-VE', 'float'),  ('episode_reward_test_env_video_hard', 'ERTEST-VH', 'float')
+                 ('episode_reward_color_easy', 'ERTEST-CE', 'float'),  ('episode_reward_color_hard', 'ERTEST-CH', 'float'),  ('episode_reward_video_easy', 'ERTEST-VE', 'float'),  ('episode_reward_video_hard', 'ERTEST-VH', 'float')
                  ]
     }
 }
