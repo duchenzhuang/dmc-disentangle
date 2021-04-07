@@ -12,9 +12,12 @@ FORMAT_CONFIG = {
             ('episode', 'E', 'int'), ('step', 'S', 'int'),
             ('duration', 'D', 'time'), ('episode_reward', 'R', 'float'),
             ('actor_loss', 'ALOSS', 'float'), ('critic_loss', 'CLOSS', 'float'),
-            ('aux_loss', 'AUXLOSS', 'float'), ('ccm_loss', "CCMLOSS", 'float'), ('ae_loss','AELoss','float')
+            ('aux_loss', 'AUXLOSS', 'float'), ('ccm_loss', "CCMLOSS", 'float'), ('ae_loss','AELoss','float'),
+            ('neg_loss', 'NEGLOSS', 'float')
         ],
-        'eval': [('step', 'S', 'int'), ('episode_reward', 'ER', 'float'), ('episode_reward_test_env', 'ERTEST', 'float')]
+        'eval': [('step', 'S', 'int'), ('episode_reward', 'ER', 'float'), ('episode_reward_test_env', 'ERTEST', 'float'),
+                 ('episode_reward_test_env_color_easy', 'ERTEST-CE', 'float'),  ('episode_reward_test_env_color_hard', 'ERTEST-CH', 'float'),  ('episode_reward_test_env_video_easy', 'ERTEST-VE', 'float'),  ('episode_reward_test_env_video_hard', 'ERTEST-VH', 'float')
+                 ]
     }
 }
 

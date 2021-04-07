@@ -7,7 +7,8 @@ import numpy as np
 import torch
 
 import augmentations
-
+import rad_augmentation as rad
+import torchvision.transforms as TF
 
 class eval_mode(object):
 	def __init__(self, *models):
@@ -190,6 +191,66 @@ class ReplayBuffer(object):
 		pos = obses * 255.
 
 		return obs, actions, rewards, next_obs, not_dones, pos
+
+	def sample_neg(self, n=None):
+		anchor = (torch.rand((1,)) + 0.25) / 1.25   # 0.2 - 1.0
+
+		def prob_random(p=0.5):
+			if random.random() > p:
+				return -1.
+			else:
+				return 1.
+
+		left_right = prob_random(0.5)
+		rotate_angle = torch.acos(anchor) * left_right * 180 / 3.14
+
+		aug_funcs = {
+                # 'crop':rad.random_crop,
+                # 'grayscale':rad.random_grayscale,
+                # 'cutout':rad.random_cutout,
+                # 'cutout_color':rad.random_cutout_color,
+                # 'flip':rad.random_flip,
+                # 'rotate':rad.random_rotation,
+                'rotate':TF.RandomRotation((rotate_angle, rotate_angle), resample=False, expand=False, fill=0),
+                # 'rand_conv':rad.random_convolution,
+                # 'color_jitter':rad.random_color_jitter,
+                # 'translate':rad.random_translate,
+                # 'no_aug':rad.no_aug,
+            }
+
+		idxs = self._get_idxs(n)
+
+		obs = torch.as_tensor(self.obs[idxs]).cuda().float()
+
+		obses = np.empty(self.obs[idxs].shape, dtype=np.uint8)
+		np.copyto(self.obs[idxs], obses)
+
+		obs = augmentations.random_crop(obs)
+
+		if aug_funcs:
+			for aug, func in aug_funcs.items():
+				# apply crop and cutout first
+				if 'crop' in aug or 'cutout' in aug:
+					obses = func(obses)
+				elif 'translate' in aug:
+					og_obses = center_crop_images(obses, self.pre_image_size)
+					obses, rndm_idxs = func(og_obses, self.image_size, return_random_idxs=True)
+
+		obses = torch.as_tensor(obses).cuda().float()
+		obses = obses / 255.
+		# augmentations go here
+		if aug_funcs:
+			for aug, func in aug_funcs.items():
+				# skip crop and cutout augs
+				if 'crop' in aug or 'cutout' in aug or 'translate' in aug:
+					continue
+				obses = func(obses)
+
+		pos = obses * 255.
+		pos = augmentations.random_crop(pos)
+		pos = augmentations.random_overlay(pos)
+
+		return obs, pos, anchor.cuda()
 
 	def sample_rad_norm(self, aug_funcs, n=None):
 		# augs specified as flags

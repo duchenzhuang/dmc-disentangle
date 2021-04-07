@@ -5,6 +5,8 @@ import torch.nn.functional as F
 from algorithms.sac import SAC
 import augmentations
 import rad_augmentation as rad
+from copy import deepcopy
+import utils
 
 def off_diagonal(x):
     # return a flattened view of the off-diagonal elements of a square matrix
@@ -36,6 +38,16 @@ class CCM(SAC):
         self.bn = nn.BatchNorm1d(args.hidden_dim, affine=False).cuda()
 
         self.pad_head = m.InverseDynamics(aux_encoder, action_shape, args.hidden_dim).cuda()
+
+
+        # NEG
+        self.soda_tau = args.soda_tau
+        self.predictor = m.SODAPredictor(aux_encoder, args.projection_dim).cuda()
+        self.predictor_target = deepcopy(self.predictor)
+        self.neg_optimizer = torch.optim.Adam(
+            self.predictor.parameters(), lr=args.aux_lr, betas=(args.aux_beta, 0.999)
+        )
+
 
         # rad
         # self.data_augs = data_augs
@@ -146,6 +158,30 @@ class CCM(SAC):
         if L is not None:
             L.log('train/ccm_loss', ccm_loss, step)
 
+    def compute_neg_loss(self, x0, x1, margin):
+        h0 = self.predictor(x0)
+        with torch.no_grad():
+            h1 = self.predictor_target.encoder(x1)
+        # h0 = F.normalize(h0, p=2, dim=1)
+        # h1 = F.normalize(h1, p=2, dim=1)
+        # dist = F.mse_loss(h0, h1)
+        dist = F.cosine_similarity(h0, h1)
+        return (margin - dist).pow(2).sum()
+
+    def update_neg_rad(self, x, neg, anchor, L=None, step=None):
+        neg_loss = self.compute_neg_loss(x, neg, anchor)
+
+        self.neg_optimizer.zero_grad()
+        neg_loss.backward()
+        self.neg_optimizer.step()
+
+        utils.soft_update_params(
+            self.predictor, self.predictor_target,
+            self.soda_tau
+        )
+        if L is not None:
+            L.log('train/neg_loss', neg_loss, step)
+
     def update_ac(self, obs, L, step):
         h, rec_obs = self.autoEncoder(obs)
         rec_loss = F.mse_loss(obs, rec_obs)
@@ -196,11 +232,21 @@ class CCM(SAC):
 
 
             # soda augmentation + ccm + diff
-            obs = replay_buffer.sample_soda(self.soda_batch_size)
-            self.update_soda_ccm(obs, 100, L, step)
-
+            # obs = replay_buffer.sample_soda(self.soda_batch_size)
+            # self.update_soda_ccm(obs, 100, L, step)
 
 
 
             # # rad augmentation + ccm
             # self.update_ccm(obs, pos, L, step)
+
+
+
+            # # rad augmentation + ccm + diff
+            obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_rad(self.augs_funcs)
+            self.update_ccm(obs, pos, L, step)
+
+
+            # NEG SAMPLE
+            obs, neg, anchor = replay_buffer.sample_neg(self.soda_batch_size)
+            self.update_neg_rad(obs, neg, anchor, L, step)
