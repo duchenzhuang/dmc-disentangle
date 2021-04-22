@@ -17,7 +17,7 @@ def parse_args():
 	parser.add_argument('--train_steps', default='500k', type=str)
 	parser.add_argument('--discount', default=0.99, type=float)
 	parser.add_argument('--init_steps', default=1000, type=int)
-	parser.add_argument('--batch_size', default=128, type=int)
+	parser.add_argument('--batch_size', default=256, type=int)
 	parser.add_argument('--hidden_dim', default=1024, type=int)
 
 	# actor
@@ -68,6 +68,9 @@ def parse_args():
 	parser.add_argument('--log_dir', default='logs', type=str)
 	parser.add_argument('--save_tb', default=False, action='store_true')
 	parser.add_argument('--save_video', default=False, action='store_true')
+
+	#intrinsic
+	parser.add_argument('--use_intrinsic', default=False, action='store_true')
 
 	args = parser.parse_args()
 
