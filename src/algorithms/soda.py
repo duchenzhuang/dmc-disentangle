@@ -16,6 +16,7 @@ class SODA(SAC):
         self.soda_batch_size = args.soda_batch_size
         self.soda_tau = args.soda_tau
         self.use_intrinsic = args.use_intrinsic
+        self.in_gamma = args.in_gamma
 
         shared_cnn = self.critic.encoder.shared_cnn
         aux_cnn = self.critic.encoder.head_cnn
@@ -109,15 +110,14 @@ class SODA(SAC):
         aug_x = augmentations.random_overlay(aug_x)
 
         loss = get_reward(x, aug_x)
-
-        return torch.log(loss + 1).reshape(-1, 1)
+        reward = torch.log(loss + 1).reshape(-1, 1)
+        return F.normalize(reward, dim=0)
 
 
     def update(self, replay_buffer, L, step):
         obs, action, reward, next_obs, not_done = replay_buffer.sample()
         if self.use_intrinsic:
-            reward += 0.1 * self.intrinsic_reward(obs)
-        # print(reward)
+            reward += self.in_gamma * self.intrinsic_reward(obs)
 
         self.update_critic(obs, action, reward, next_obs, not_done, L, step)
 

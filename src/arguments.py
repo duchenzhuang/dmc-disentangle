@@ -71,6 +71,7 @@ def parse_args():
 
 	#intrinsic
 	parser.add_argument('--use_intrinsic', default=False, action='store_true')
+	parser.add_argument('--in_gamma', default=0.1, type=float)
 
 	args = parser.parse_args()
 
