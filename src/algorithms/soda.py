@@ -117,7 +117,7 @@ class SODA(SAC):
     def update(self, replay_buffer, L, step):
         obs, action, reward, next_obs, not_done = replay_buffer.sample()
         if self.use_intrinsic:
-            reward += self.in_gamma * self.intrinsic_reward(obs)
+            reward += self.in_gamma * self.intrinsic_reward(next_obs)
 
         self.update_critic(obs, action, reward, next_obs, not_done, L, step)
 
