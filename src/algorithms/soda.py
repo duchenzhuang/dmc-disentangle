@@ -95,7 +95,7 @@ class SODA(SAC):
             self.soda_tau
         )
 
-    def intrinsic_reward(self, x):
+    def intrinsic_reward(self, x, L=None, step=None):
         def get_reward(x0, x1):
             with torch.no_grad():
                 h0 = self.predictor(x0)
@@ -111,13 +111,19 @@ class SODA(SAC):
 
         loss = get_reward(x, aug_x)
         reward = torch.log(loss + 1).reshape(-1, 1)
-        return F.normalize(reward, dim=0)
+        norm_reward = F.normalize(reward, dim=0)
+        if L is not None:
+            L.log('train/norm_reward_mean', norm_reward.mean(), step)
+            L.log('train/norm_reward_std', norm_reward.std(), step)
+            L.log('train/norm_reward_max', norm_reward.max(), step)
+            L.log('train/norm_reward_min', norm_reward.min(), step)
+        return norm_reward
 
 
     def update(self, replay_buffer, L, step):
         obs, action, reward, next_obs, not_done = replay_buffer.sample()
         if self.use_intrinsic:
-            reward += self.in_gamma * self.intrinsic_reward(next_obs)
+            reward += self.in_gamma * self.intrinsic_reward(next_obs, L, step)
 
         self.update_critic(obs, action, reward, next_obs, not_done, L, step)
 
