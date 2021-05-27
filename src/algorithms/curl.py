@@ -63,8 +63,24 @@ class CURL(SAC):
 		if L is not None:
 			L.log('train/aux_loss', curl_loss, step)
 
+	def intrinsic_reward(self, x, x_pos):
+		assert x.size(-1) == 84 and x_pos.size(-1) == 84
+
+		z_a = self.curl_head.encoder(x)
+		with torch.no_grad():
+			z_pos = self.critic_target.encoder(x_pos)
+
+		logits = self.curl_head.compute_logits(z_a, z_pos)
+		labels = torch.arange(logits.shape[0]).long().cuda()
+		curl_loss = F.cross_entropy(logits, labels)
+
+		return torch.log(curl_loss + 1)
+
 	def update(self, replay_buffer, L, step):
 		obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_curl()
+		print(reward)
+		reward += 0.01 * self.intrinsic_reward(obs, pos)
+		print(reward)
 
 		self.update_critic(obs, action, reward, next_obs, not_done, L, step)
 
@@ -79,11 +95,11 @@ class CURL(SAC):
 			# self.update_curl(obs, pos, L, step)
 			#
 			# # diff curl
-			# obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_curl()
-			# self.update_curl(obs, pos, L, step)
+			obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_curl()
+			self.update_curl(obs, pos, L, step)
 
 			# soda + curl
-			self.update_soda_curl(pos, 84, L, step)
+			# self.update_soda_curl(pos, 84, L, step)
 
 			# # soda + curl + diff
 			# obs = replay_buffer.sample_soda(self.soda_batch_size)

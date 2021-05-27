@@ -60,24 +60,29 @@ def _get_places_batch(batch_size):
 		if imgs.size(0) < batch_size:
 			places_iter = iter(places_dataloader)
 			imgs, _ = next(places_iter)
+		# elif imgs.size(0) > batch_size:
+		# 	imgs = imgs[:batch_size, :, :, :]
 	except StopIteration:
 		places_iter = iter(places_dataloader)
 		imgs, _ = next(places_iter)
 	return imgs.cuda()
 
 
-def random_overlay(x, dataset='places365_standard'):
+def random_overlay(x, args, dataset='places365_standard'):
 	"""Randomly overlay an image from Places"""
 	global places_iter
-	alpha = 0.5
+	alpha = args.aux_alpha
+	batch_size = max(args.batch_size, args.soda_batch_size)
+	# print(x.size(0))
 
 	if dataset == 'places365_standard':
 		if places_dataloader is None:
-			_load_places(batch_size=x.size(0), image_size=x.size(-1))
+			_load_places(batch_size=batch_size, image_size=x.size(-1))
 		imgs = _get_places_batch(batch_size=x.size(0)).repeat(1, x.size(1)//3, 1, 1)
+		if x.size(0) < imgs.size(0):
+			imgs = imgs[:x.size(0), :, :, :]
 	else:
 		raise NotImplementedError(f'overlay has not been implemented for dataset "{dataset}"')
-
 	return ((1-alpha)*(x/255.) + (alpha)*imgs)*255.
 
 

@@ -45,7 +45,7 @@ class CCM(SAC):
         self.predictor = m.SODAPredictor(aux_encoder, args.projection_dim).cuda()
         self.predictor_target = deepcopy(self.predictor)
         self.neg_optimizer = torch.optim.Adam(
-            self.predictor.parameters(), lr=args.aux_lr, betas=(args.aux_beta, 0.999)
+            self.predictor.parameters(), lr=1e-4, betas=(args.aux_beta, 0.999)
         )
 
 
@@ -159,14 +159,21 @@ class CCM(SAC):
             L.log('train/ccm_loss', ccm_loss, step)
 
     def compute_neg_loss(self, x0, x1, margin):
-        h0 = self.predictor(x0)
-        with torch.no_grad():
-            h1 = self.predictor_target.encoder(x1)
-        # h0 = F.normalize(h0, p=2, dim=1)
-        # h1 = F.normalize(h1, p=2, dim=1)
-        # dist = F.mse_loss(h0, h1)
+        # # BYOL
+        # h0 = self.predictor(x0)
+        # with torch.no_grad():
+        #     h1 = self.predictor_target.encoder(x1)
+
+        # CCM
+        h0 = self.ccm_head(x0)
+        h1 = self.ccm_head(x1)
+
+        # # ONLY CCM Encoder
+        # h0 = self.ccm_head.encoder(x0)
+        # h1 = self.ccm_head.encoder(x1)
+
         dist = F.cosine_similarity(h0, h1)
-        return (margin - dist).pow(2).sum()
+        return (margin - dist).pow(2).mean()
 
     def update_neg_rad(self, x, neg, anchor, L=None, step=None):
         neg_loss = self.compute_neg_loss(x, neg, anchor)
@@ -241,12 +248,11 @@ class CCM(SAC):
             # self.update_ccm(obs, pos, L, step)
 
 
-
             # # rad augmentation + ccm + diff
             obs, action, reward, next_obs, not_done, pos = replay_buffer.sample_rad(self.augs_funcs)
             self.update_ccm(obs, pos, L, step)
 
-
-            # NEG SAMPLE
-            obs, neg, anchor = replay_buffer.sample_neg(self.soda_batch_size)
-            self.update_neg_rad(obs, neg, anchor, L, step)
+        # if step % self.aux_update_freq == 0:
+        #     # NEG SAMPLE
+        #     obs, neg, anchor = replay_buffer.sample_neg(self.soda_batch_size)
+        #     self.update_neg_rad(obs, neg, anchor, L, step)

@@ -1,5 +1,5 @@
-CUDA_VISIBLE_DEVICES=2 python3 src/train.py \
+CUDA_VISIBLE_DEVICES=3 python3 src/train.py \
 	--algorithm ccm \
 	--save_tb \
-	--hidden_dim 8192 \
+	--hidden_dim 4096 \
 	--seed 0

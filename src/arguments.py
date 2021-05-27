@@ -15,9 +15,10 @@ def parse_args():
 	# agent
 	parser.add_argument('--algorithm', default='ours', type=str)
 	parser.add_argument('--train_steps', default='500k', type=str)
+	parser.add_argument('--capacity', default='500k', type=str)
 	parser.add_argument('--discount', default=0.99, type=float)
 	parser.add_argument('--init_steps', default=1000, type=int)
-	parser.add_argument('--batch_size', default=256, type=int)
+	parser.add_argument('--batch_size', default=128, type=int)
 	parser.add_argument('--hidden_dim', default=1024, type=int)
 
 	# actor
@@ -48,6 +49,7 @@ def parse_args():
 	# auxiliary tasks
 	parser.add_argument('--aux_lr', default=1e-3, type=float)
 	parser.add_argument('--aux_beta', default=0.9, type=float)
+	parser.add_argument('--aux_alpha', default=0.5, type=float)
 	parser.add_argument('--aux_update_freq', default=2, type=int)
 
 	# ccm
@@ -72,6 +74,7 @@ def parse_args():
 	#intrinsic
 	parser.add_argument('--use_intrinsic', default=False, action='store_true')
 	parser.add_argument('--in_gamma', default=0.1, type=float)
+	parser.add_argument('--in_decay', default=1., type=float)
 
 	args = parser.parse_args()
 
@@ -82,6 +85,7 @@ def parse_args():
 	assert args.log_dir is not None, 'must provide a log directory for experiment'
 
 	args.train_steps = int(args.train_steps.replace('k', '000'))
+	args.capacity = int(args.capacity.replace('k', '000'))
 	args.save_freq = int(args.save_freq.replace('k', '000'))
 	args.eval_freq = int(args.eval_freq.replace('k', '000'))
 	

@@ -17,6 +17,8 @@ class SODA(SAC):
         self.soda_tau = args.soda_tau
         self.use_intrinsic = args.use_intrinsic
         self.in_gamma = args.in_gamma
+        self.in_decay = args.in_decay
+        self.args = args
 
         shared_cnn = self.critic.encoder.shared_cnn
         aux_cnn = self.critic.encoder.head_cnn
@@ -57,7 +59,7 @@ class SODA(SAC):
         x = augmentations.random_crop(x)
         aug_x = augmentations.random_crop(aug_x)
         # print(x.shape, aug_x.shape)
-        aug_x = augmentations.random_overlay(aug_x)
+        aug_x = augmentations.random_overlay(aug_x, self.args)
         # print(x.shape, aug_x.shape)
 
         soda_loss = self.compute_soda_loss(aug_x, x)
@@ -80,7 +82,7 @@ class SODA(SAC):
 
         # x = augmentations.random_crop(x)
         # aug_x = augmentations.random_crop(aug_x)
-        aug_x = augmentations.random_overlay(aug_x)
+        aug_x = augmentations.random_overlay(aug_x, self.args)
 
         soda_loss = self.compute_soda_loss(aug_x, x)
 
@@ -107,14 +109,19 @@ class SODA(SAC):
         assert x.size(-1) == 84
 
         aug_x = x.clone()
-        aug_x = augmentations.random_overlay(aug_x)
+        aug_x = augmentations.random_overlay(aug_x, self.args)
 
         loss = get_reward(x, aug_x)
         reward = torch.log(loss + 1).reshape(-1, 1)
-        norm_reward = F.normalize(reward, dim=0)
+        # norm_reward = F.normalize(reward, dim=0)
+        norm_reward = (reward - reward.mean()) / (reward.std() + 0.00001)
         if L is not None:
-            L.log('train/norm_reward_mean', norm_reward.mean(), step)
-            L.log('train/norm_reward_std', norm_reward.std(), step)
+            # L.log('train/norm_reward_mean', norm_reward.mean(), step)
+            # L.log('train/norm_reward_std', norm_reward.std(), step)
+            # L.log('train/norm_reward_max', norm_reward.max(), step)
+            # L.log('train/norm_reward_min', norm_reward.min(), step)
+            L.log('train/reward_mean', reward.mean(), step)
+            L.log('train/reward_std', reward.std(), step)
             L.log('train/norm_reward_max', norm_reward.max(), step)
             L.log('train/norm_reward_min', norm_reward.min(), step)
         return norm_reward
@@ -122,6 +129,12 @@ class SODA(SAC):
 
     def update(self, replay_buffer, L, step):
         obs, action, reward, next_obs, not_done = replay_buffer.sample()
+
+        if step % 100000 == 0:
+            print("==decaying==", self.in_gamma)
+            self.in_gamma = self.in_gamma * self.in_decay
+            print(self.in_gamma)
+
         if self.use_intrinsic:
             reward += self.in_gamma * self.intrinsic_reward(next_obs, L, step)
 
