@@ -134,6 +134,23 @@ class ReplayBuffer(object):
 	def sample_soda(self, n=None):
 		return torch.as_tensor(self.obs[self._get_idxs(n)]).cuda().float()
 
+	def sample_curl_intri(self, n=None):
+		idxs = self._get_idxs(n)
+
+		obs = torch.as_tensor(self.obs[idxs]).cuda().float()
+		actions = torch.as_tensor(self.actions[idxs]).cuda()
+		rewards = torch.as_tensor(self.rewards[idxs]).cuda()
+		next_obs = torch.as_tensor(self.next_obs[idxs]).cuda().float()
+		not_dones = torch.as_tensor(self.not_dones[idxs]).cuda()
+
+		pos = augmentations.random_crop(obs.clone())
+		obs = augmentations.random_crop(obs)
+		next_obs = augmentations.random_crop(next_obs)
+		next_pos = augmentations.random_crop(next_obs.clone())
+
+		return obs, actions, rewards, next_obs, not_dones, pos, next_pos
+
+
 	def sample_curl(self, n=None):
 		idxs = self._get_idxs(n)
 

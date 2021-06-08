@@ -1,0 +1,13 @@
+CUDA_VISIBLE_DEVICES=1 python3 src/train.py \
+	--domain_name finger \
+  --task_name spin \
+  --action_repeat 2 \
+	--algorithm curl \
+	--seed 0 \
+	--aux_update_freq 1 \
+	--capacity 200k \
+	--num_shared_layers 4 \
+	--save_tb \
+	--in_gamma 0.005 \
+	--in_decay 0.8 \
+	--use_intrinsic
